@@ -15,7 +15,7 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useCustomers } from '@/contexts/CustomerContext';
 import { colors, commonStyles } from '@/styles/commonStyles';
-import { formatDate, formatCurrency, getDaysUntil, isOverdue, getDaysUntilBirthday, getAge } from '@/utils/dateUtils';
+import { formatDate, formatCurrency, getDaysUntil, isOverdue, getDaysUntilBirthday, getAge, formatAddress } from '@/utils/dateUtils';
 
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -124,12 +124,12 @@ export default function CustomerDetailScreen() {
             </View>
           </View>
 
-          {customer.address && (
+          {customer.address && formatAddress(customer.address) && (
             <View style={styles.infoRow}>
               <IconSymbol name="location.fill" size={20} color={colors.textSecondary} />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Địa chỉ</Text>
-                <Text style={styles.infoValue}>{customer.address}</Text>
+                <Text style={styles.infoValue}>{formatAddress(customer.address)}</Text>
               </View>
             </View>
           )}
@@ -139,12 +139,16 @@ export default function CustomerDetailScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Thông tin bảo hiểm</Text>
 
-            {customer.insuranceCompany && (
+            {customer.insuranceCompany && customer.insuranceCompany.length > 0 && (
               <View style={styles.infoRow}>
                 <IconSymbol name="building.2.fill" size={20} color={colors.textSecondary} />
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Công ty bảo hiểm</Text>
-                  <Text style={styles.infoValue}>{customer.insuranceCompany}</Text>
+                  {customer.insuranceCompany.map((company, index) => (
+                    <Text key={index} style={styles.infoValue}>
+                      • {company}
+                    </Text>
+                  ))}
                 </View>
               </View>
             )}
@@ -159,22 +163,27 @@ export default function CustomerDetailScreen() {
               </View>
             )}
 
-            {customer.securityNumber && (
-              <View style={styles.infoRow}>
-                <IconSymbol name="lock.fill" size={20} color={colors.textSecondary} />
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Số bảo mật</Text>
-                  <Text style={styles.infoValue}>{customer.securityNumber}</Text>
-                </View>
-              </View>
-            )}
-
             {customer.insuranceStartDate && (
               <View style={styles.infoRow}>
                 <IconSymbol name="calendar" size={20} color={colors.textSecondary} />
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Ngày tham gia</Text>
                   <Text style={styles.infoValue}>{formatDate(customer.insuranceStartDate)}</Text>
+                </View>
+              </View>
+            )}
+
+            {customer.premiumFrequency && (
+              <View style={styles.infoRow}>
+                <IconSymbol name="clock.fill" size={20} color={colors.textSecondary} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Định kỳ đóng phí</Text>
+                  <Text style={styles.infoValue}>
+                    {customer.premiumFrequency === 'monthly' && 'Hàng tháng'}
+                    {customer.premiumFrequency === 'quarterly' && 'Hàng quý'}
+                    {customer.premiumFrequency === 'semi-annual' && 'Nửa năm'}
+                    {customer.premiumFrequency === 'annual' && 'Hàng năm'}
+                  </Text>
                 </View>
               </View>
             )}
@@ -220,6 +229,17 @@ export default function CustomerDetailScreen() {
               <IconSymbol name="info.circle.fill" size={40} color={colors.secondary} />
               <Text style={styles.noInsuranceText}>Khách hàng chưa tham gia bảo hiểm</Text>
             </View>
+          </View>
+        )}
+
+        {customer.images && customer.images.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Hình ảnh</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mediaScroll}>
+              {customer.images.map((image, index) => (
+                <Image key={index} source={{ uri: image }} style={styles.mediaImage} />
+              ))}
+            </ScrollView>
           </View>
         )}
 
@@ -351,6 +371,7 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 16,
     color: colors.text,
+    marginBottom: 2,
   },
   amountText: {
     fontWeight: '700',
@@ -382,6 +403,15 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 16,
     textAlign: 'center',
+  },
+  mediaScroll: {
+    marginTop: 8,
+  },
+  mediaImage: {
+    width: 150,
+    height: 150,
+    borderRadius: 8,
+    marginRight: 12,
   },
   notesText: {
     fontSize: 16,
