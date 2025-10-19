@@ -9,15 +9,23 @@ import { router } from 'expo-router';
 
 interface CustomerCardProps {
   customer: Customer;
+  selectMode?: boolean;
+  isSelected?: boolean;
+  onSelect?: () => void;
 }
 
-export const CustomerCard = ({ customer }: CustomerCardProps) => {
-  const handleCall = () => {
+export const CustomerCard = ({ customer, selectMode = false, isSelected = false, onSelect }: CustomerCardProps) => {
+  const handleCall = (e: any) => {
+    e.stopPropagation();
     Linking.openURL(`tel:${customer.phoneNumber}`);
   };
 
   const handlePress = () => {
-    router.push(`/customer/${customer.id}`);
+    if (selectMode && onSelect) {
+      onSelect();
+    } else {
+      router.push(`/customer/${customer.id}`);
+    }
   };
 
   const daysUntilDue = customer.nextPremiumDueDate ? getDaysUntil(customer.nextPremiumDueDate) : null;
@@ -26,8 +34,22 @@ export const CustomerCard = ({ customer }: CustomerCardProps) => {
 
   return (
     <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
-      <View style={[commonStyles.card, styles.card]}>
+      <View style={[
+        commonStyles.card, 
+        styles.card,
+        selectMode && isSelected && styles.cardSelected
+      ]}>
         <View style={styles.header}>
+          {selectMode && (
+            <View style={styles.checkboxContainer}>
+              <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                {isSelected && (
+                  <IconSymbol name="checkmark" size={18} color="#FFFFFF" />
+                )}
+              </View>
+            </View>
+          )}
+          
           <View style={styles.avatarContainer}>
             {customer.avatar ? (
               <Image source={{ uri: customer.avatar }} style={styles.avatar} />
@@ -50,10 +72,12 @@ export const CustomerCard = ({ customer }: CustomerCardProps) => {
         <View style={styles.divider} />
 
         <View style={styles.infoSection}>
-          {customer.hasInsurance && customer.insuranceCompany && (
+          {customer.hasInsurance && customer.insuranceCompany && customer.insuranceCompany.length > 0 && (
             <View style={styles.infoRow}>
               <IconSymbol name="building.2.fill" size={16} color={colors.textSecondary} />
-              <Text style={styles.infoText}>{customer.insuranceCompany}</Text>
+              <Text style={styles.infoText} numberOfLines={1}>
+                {customer.insuranceCompany.join(', ')}
+              </Text>
             </View>
           )}
 
@@ -129,10 +153,32 @@ const styles = StyleSheet.create({
   card: {
     padding: 16,
   },
+  cardSelected: {
+    borderWidth: 2,
+    borderColor: colors.primary,
+    backgroundColor: colors.inputBackground,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  checkboxContainer: {
+    marginRight: 12,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+  },
+  checkboxSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   avatarContainer: {
     marginRight: 12,

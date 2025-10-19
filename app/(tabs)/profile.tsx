@@ -1,15 +1,22 @@
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/IconSymbol';
-import React from 'react';
+import React, { useState } from 'react';
 import { useTheme } from '@react-navigation/native';
 import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity, Alert } from 'react-native';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { useCustomers } from '@/contexts/CustomerContext';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as DocumentPicker from 'expo-document-picker';
 
 export default function ProfileScreen() {
   const theme = useTheme();
   const { customers } = useCustomers();
+  const [isExporting, setIsExporting] = useState(false);
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   const totalCustomers = customers.length;
   const insuredCustomers = customers.filter(c => c.hasInsurance).length;
@@ -19,12 +26,213 @@ export default function ProfileScreen() {
     return new Date(c.nextPremiumDueDate) < new Date();
   }).length;
 
-  const handleExport = () => {
-    Alert.alert('Xuất dữ liệu', 'Tính năng xuất dữ liệu sẽ được cập nhật trong phiên bản tiếp theo');
+  const handleExport = async () => {
+    if (customers.length === 0) {
+      Alert.alert('Thông báo', 'Không có dữ liệu khách hàng để xuất');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      // Create CSV content
+      const headers = [
+        'Họ tên',
+        'Số điện thoại',
+        'Ngày sinh',
+        'Địa chỉ',
+        'Đã tham gia BH',
+        'Công ty BH',
+        'Số hợp đồng',
+        'Ngày tham gia BH',
+        'Số tiền phí',
+        'Kỳ đóng phí',
+        'Ngày đến hạn',
+        'Ghi chú'
+      ].join(',');
+
+      const rows = customers.map(customer => {
+        const address = [
+          customer.address?.street,
+          customer.address?.ward,
+          customer.address?.district,
+          customer.address?.province
+        ].filter(Boolean).join(', ');
+
+        const insuranceCompanies = customer.insuranceCompany?.join('; ') || '';
+        
+        const premiumFrequencyMap: { [key: string]: string } = {
+          'monthly': 'Hàng tháng',
+          'quarterly': 'Hàng quý',
+          'semi-annual': 'Nửa năm',
+          'annual': 'Hàng năm'
+        };
+
+        return [
+          `"${customer.fullName}"`,
+          customer.phoneNumber,
+          new Date(customer.dateOfBirth).toLocaleDateString('vi-VN'),
+          `"${address}"`,
+          customer.hasInsurance ? 'Có' : 'Không',
+          `"${insuranceCompanies}"`,
+          customer.contractNumber || '',
+          customer.insuranceStartDate ? new Date(customer.insuranceStartDate).toLocaleDateString('vi-VN') : '',
+          customer.premiumAmount || '',
+          customer.premiumFrequency ? premiumFrequencyMap[customer.premiumFrequency] : '',
+          customer.nextPremiumDueDate ? new Date(customer.nextPremiumDueDate).toLocaleDateString('vi-VN') : '',
+          `"${customer.notes || ''}"`
+        ].join(',');
+      });
+
+      const csvContent = [headers, ...rows].join('\n');
+      
+      // Add BOM for UTF-8 encoding to support Vietnamese characters in Excel
+      const BOM = '\uFEFF';
+      const csvWithBOM = BOM + csvContent;
+
+      // Save to file
+      const fileName = `khach_hang_${new Date().getTime()}.csv`;
+      const fileUri = FileSystem.documentDirectory + fileName;
+      
+      await FileSystem.writeAsStringAsync(fileUri, csvWithBOM, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      // Share the file
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/csv',
+          dialogTitle: 'Xuất dữ liệu khách hàng',
+          UTI: 'public.comma-separated-values-text'
+        });
+      } else {
+        Alert.alert('Lỗi', 'Không thể chia sẻ file trên thiết bị này');
+      }
+
+      Alert.alert('Thành công', `Đã xuất ${customers.length} khách hàng`);
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      Alert.alert('Lỗi', 'Không thể xuất dữ liệu');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
-  const handleBackup = () => {
-    Alert.alert('Sao lưu', 'Tính năng sao lưu sẽ được cập nhật trong phiên bản tiếp theo');
+  const handleBackup = async () => {
+    if (customers.length === 0) {
+      Alert.alert('Thông báo', 'Không có dữ liệu để sao lưu');
+      return;
+    }
+
+    setIsBackingUp(true);
+    try {
+      // Get all data from AsyncStorage
+      const customersData = await AsyncStorage.getItem('@insurance_customers');
+      
+      if (!customersData) {
+        Alert.alert('Lỗi', 'Không tìm thấy dữ liệu để sao lưu');
+        return;
+      }
+
+      // Create backup object with metadata
+      const backup = {
+        version: '1.0',
+        timestamp: new Date().toISOString(),
+        data: {
+          customers: JSON.parse(customersData)
+        }
+      };
+
+      // Save to file
+      const fileName = `backup_${new Date().getTime()}.json`;
+      const fileUri = FileSystem.documentDirectory + fileName;
+      
+      await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(backup, null, 2), {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      // Share the file
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'application/json',
+          dialogTitle: 'Sao lưu dữ liệu',
+        });
+      } else {
+        Alert.alert('Lỗi', 'Không thể chia sẻ file trên thiết bị này');
+      }
+
+      Alert.alert('Thành công', 'Đã sao lưu dữ liệu thành công');
+    } catch (error) {
+      console.error('Error backing up data:', error);
+      Alert.alert('Lỗi', 'Không thể sao lưu dữ liệu');
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    Alert.alert(
+      'Xác nhận khôi phục',
+      'Khôi phục dữ liệu sẽ thay thế toàn bộ dữ liệu hiện tại. Bạn có chắc chắn muốn tiếp tục?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Khôi phục',
+          style: 'destructive',
+          onPress: async () => {
+            setIsRestoring(true);
+            try {
+              // Pick a file
+              const result = await DocumentPicker.getDocumentAsync({
+                type: 'application/json',
+                copyToCacheDirectory: true,
+              });
+
+              if (result.canceled) {
+                setIsRestoring(false);
+                return;
+              }
+
+              // Read the file
+              const fileContent = await FileSystem.readAsStringAsync(result.assets[0].uri, {
+                encoding: FileSystem.EncodingType.UTF8,
+              });
+
+              // Parse and validate backup
+              const backup = JSON.parse(fileContent);
+              
+              if (!backup.data || !backup.data.customers) {
+                Alert.alert('Lỗi', 'File sao lưu không hợp lệ');
+                return;
+              }
+
+              // Restore data
+              await AsyncStorage.setItem('@insurance_customers', JSON.stringify(backup.data.customers));
+
+              Alert.alert(
+                'Thành công',
+                'Đã khôi phục dữ liệu thành công. Vui lòng khởi động lại ứng dụng để áp dụng thay đổi.',
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      // Force reload by clearing and reloading
+                      if (Platform.OS === 'web') {
+                        window.location.reload();
+                      }
+                    }
+                  }
+                ]
+              );
+            } catch (error) {
+              console.error('Error restoring data:', error);
+              Alert.alert('Lỗi', 'Không thể khôi phục dữ liệu. Vui lòng kiểm tra file sao lưu.');
+            } finally {
+              setIsRestoring(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleAbout = () => {
@@ -82,18 +290,44 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Dữ liệu</Text>
           
-          <TouchableOpacity style={styles.menuItem} onPress={handleExport}>
+          <TouchableOpacity 
+            style={styles.menuItem} 
+            onPress={handleExport}
+            disabled={isExporting}
+          >
             <View style={styles.menuItemLeft}>
               <IconSymbol name="square.and.arrow.up" size={24} color={colors.primary} />
-              <Text style={styles.menuItemText}>Xuất dữ liệu</Text>
+              <Text style={styles.menuItemText}>
+                {isExporting ? 'Đang xuất...' : 'Xuất dữ liệu (CSV)'}
+              </Text>
             </View>
             <IconSymbol name="chevron.right" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem} onPress={handleBackup}>
+          <TouchableOpacity 
+            style={styles.menuItem} 
+            onPress={handleBackup}
+            disabled={isBackingUp}
+          >
             <View style={styles.menuItemLeft}>
               <IconSymbol name="arrow.clockwise.circle" size={24} color={colors.primary} />
-              <Text style={styles.menuItemText}>Sao lưu & Khôi phục</Text>
+              <Text style={styles.menuItemText}>
+                {isBackingUp ? 'Đang sao lưu...' : 'Sao lưu dữ liệu'}
+              </Text>
+            </View>
+            <IconSymbol name="chevron.right" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.menuItem} 
+            onPress={handleRestore}
+            disabled={isRestoring}
+          >
+            <View style={styles.menuItemLeft}>
+              <IconSymbol name="arrow.counterclockwise.circle" size={24} color={colors.primary} />
+              <Text style={styles.menuItemText}>
+                {isRestoring ? 'Đang khôi phục...' : 'Khôi phục dữ liệu'}
+              </Text>
             </View>
             <IconSymbol name="chevron.right" size={20} color={colors.textSecondary} />
           </TouchableOpacity>

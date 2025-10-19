@@ -9,6 +9,7 @@ interface CustomerContextType {
   addCustomer: (customer: Omit<Customer, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateCustomer: (id: string, customer: Partial<Customer>) => Promise<void>;
   deleteCustomer: (id: string) => Promise<void>;
+  deleteMultipleCustomers: (ids: string[]) => Promise<void>;
   getCustomerById: (id: string) => Customer | undefined;
   searchCustomers: (filters: SearchFilters) => Customer[];
   isPhoneNumberUnique: (phoneNumber: string, excludeId?: string) => boolean;
@@ -71,6 +72,11 @@ export const CustomerProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteCustomer = async (id: string) => {
     const filteredCustomers = customers.filter(customer => customer.id !== id);
+    await saveCustomers(filteredCustomers);
+  };
+
+  const deleteMultipleCustomers = async (ids: string[]) => {
+    const filteredCustomers = customers.filter(customer => !ids.includes(customer.id));
     await saveCustomers(filteredCustomers);
   };
 
@@ -151,6 +157,7 @@ export const CustomerProvider = ({ children }: { children: ReactNode }) => {
         addCustomer,
         updateCustomer,
         deleteCustomer,
+        deleteMultipleCustomers,
         getCustomerById,
         searchCustomers,
         isPhoneNumberUnique,
