@@ -126,6 +126,12 @@ export default function CreateCustomerScreen() {
         options={{
           title: 'Thêm khách hàng',
           headerBackTitle: 'Quay lại',
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => router.back()} style={styles.headerBackButton}>
+              <IconSymbol name="chevron.left" size={24} color={colors.primary} />
+              <Text style={styles.headerBackText}>Quay lại</Text>
+            </TouchableOpacity>
+          ),
         }}
       />
       <ScrollView style={commonStyles.container} contentContainerStyle={styles.scrollContent}>
@@ -138,7 +144,7 @@ export default function CreateCustomerScreen() {
             ) : (
               <View style={styles.avatarPlaceholder}>
                 <IconSymbol name="camera.fill" size={32} color={colors.textSecondary} />
-                <Text style={styles.avatarText}>Chọn ảnh</Text>
+                <Text style={styles.avatarText}>Chọn ảnh đại diện</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -148,11 +154,11 @@ export default function CreateCustomerScreen() {
             style={commonStyles.input}
             value={fullName}
             onChangeText={setFullName}
-            placeholder="Nhập họ và tên"
+            placeholder="Nhập họ và tên đầy đủ"
             placeholderTextColor={colors.textSecondary}
           />
 
-          <Text style={commonStyles.label}>Ngày sinh *</Text>
+          <Text style={commonStyles.label}>Ngày tháng năm sinh *</Text>
           <TouchableOpacity
             style={[commonStyles.input, styles.dateButton]}
             onPress={() => setShowDatePicker(true)}
@@ -164,10 +170,19 @@ export default function CreateCustomerScreen() {
             <DateTimePicker
               value={dateOfBirth}
               mode="date"
-              display="default"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
               onChange={(event, date) => {
-                setShowDatePicker(Platform.OS === 'ios');
-                if (date) setDateOfBirth(date);
+                if (Platform.OS === 'android') {
+                  setShowDatePicker(false);
+                }
+                if (event.type === 'set' && date) {
+                  setDateOfBirth(date);
+                  if (Platform.OS === 'ios') {
+                    setShowDatePicker(false);
+                  }
+                } else if (event.type === 'dismissed') {
+                  setShowDatePicker(false);
+                }
               }}
               maximumDate={new Date()}
             />
@@ -188,7 +203,7 @@ export default function CreateCustomerScreen() {
             style={commonStyles.input}
             value={address}
             onChangeText={setAddress}
-            placeholder="Nhập địa chỉ"
+            placeholder="Nhập địa chỉ đầy đủ"
             placeholderTextColor={colors.textSecondary}
           />
         </View>
@@ -240,7 +255,7 @@ export default function CreateCustomerScreen() {
                 style={commonStyles.input}
                 value={contractNumber}
                 onChangeText={setContractNumber}
-                placeholder="Nhập số hợp đồng"
+                placeholder="Nhập số hợp đồng bảo hiểm"
                 placeholderTextColor={colors.textSecondary}
               />
 
@@ -251,6 +266,7 @@ export default function CreateCustomerScreen() {
                 onChangeText={setSecurityNumber}
                 placeholder="Nhập số bảo mật"
                 placeholderTextColor={colors.textSecondary}
+                secureTextEntry={false}
               />
 
               <Text style={commonStyles.label}>Ngày tham gia bảo hiểm</Text>
@@ -265,21 +281,30 @@ export default function CreateCustomerScreen() {
                 <DateTimePicker
                   value={insuranceStartDate}
                   mode="date"
-                  display="default"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={(event, date) => {
-                    setShowStartDatePicker(Platform.OS === 'ios');
-                    if (date) setInsuranceStartDate(date);
+                    if (Platform.OS === 'android') {
+                      setShowStartDatePicker(false);
+                    }
+                    if (event.type === 'set' && date) {
+                      setInsuranceStartDate(date);
+                      if (Platform.OS === 'ios') {
+                        setShowStartDatePicker(false);
+                      }
+                    } else if (event.type === 'dismissed') {
+                      setShowStartDatePicker(false);
+                    }
                   }}
                   maximumDate={new Date()}
                 />
               )}
 
-              <Text style={commonStyles.label}>Số tiền phí bảo hiểm</Text>
+              <Text style={commonStyles.label}>Số tiền phí bảo hiểm (VNĐ)</Text>
               <TextInput
                 style={commonStyles.input}
                 value={premiumAmount}
                 onChangeText={setPremiumAmount}
-                placeholder="Nhập số tiền"
+                placeholder="Nhập số tiền phí bảo hiểm"
                 placeholderTextColor={colors.textSecondary}
                 keyboardType="numeric"
               />
@@ -323,10 +348,19 @@ export default function CreateCustomerScreen() {
                 <DateTimePicker
                   value={nextPremiumDueDate}
                   mode="date"
-                  display="default"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={(event, date) => {
-                    setShowDueDatePicker(Platform.OS === 'ios');
-                    if (date) setNextPremiumDueDate(date);
+                    if (Platform.OS === 'android') {
+                      setShowDueDatePicker(false);
+                    }
+                    if (event.type === 'set' && date) {
+                      setNextPremiumDueDate(date);
+                      if (Platform.OS === 'ios') {
+                        setShowDueDatePicker(false);
+                      }
+                    } else if (event.type === 'dismissed') {
+                      setShowDueDatePicker(false);
+                    }
                   }}
                 />
               )}
@@ -340,7 +374,7 @@ export default function CreateCustomerScreen() {
             style={[commonStyles.input, styles.notesInput]}
             value={notes}
             onChangeText={setNotes}
-            placeholder="Nhập ghi chú"
+            placeholder="Nhập ghi chú về khách hàng (tùy chọn)"
             placeholderTextColor={colors.textSecondary}
             multiline
             numberOfLines={4}
@@ -373,6 +407,16 @@ export default function CreateCustomerScreen() {
 const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 32,
+  },
+  headerBackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  headerBackText: {
+    fontSize: 17,
+    color: colors.primary,
+    marginLeft: 4,
   },
   section: {
     padding: 16,
@@ -465,6 +509,7 @@ const styles = StyleSheet.create({
   pickerList: {
     backgroundColor: colors.card,
     borderRadius: 8,
+    marginTop: 8,
     marginBottom: 12,
     maxHeight: 200,
     borderWidth: 1,
