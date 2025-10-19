@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   Image,
+  Linking,
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -42,6 +43,8 @@ export default function EditCustomerScreen() {
   const [showProvincePicker, setShowProvincePicker] = useState(false);
   const [showDistrictPicker, setShowDistrictPicker] = useState(false);
   const [showWardPicker, setShowWardPicker] = useState(false);
+  
+  const [googleMapsLocation, setGoogleMapsLocation] = useState('');
   
   const [hasInsurance, setHasInsurance] = useState(false);
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
@@ -88,6 +91,8 @@ export default function EditCustomerScreen() {
         }
         setStreet(customer.address.street || '');
       }
+      
+      setGoogleMapsLocation(customer.googleMapsLocation || '');
       
       setHasInsurance(customer.hasInsurance);
       setSelectedCompanies(customer.insuranceCompany || []);
@@ -184,6 +189,25 @@ export default function EditCustomerScreen() {
     return wards.find(w => w.code === wardCode);
   };
 
+  const handleOpenGoogleMaps = async () => {
+    if (!googleMapsLocation.trim()) {
+      Alert.alert('Thông báo', 'Vui lòng nhập vị trí Google Maps');
+      return;
+    }
+
+    try {
+      const supported = await Linking.canOpenURL(googleMapsLocation);
+      if (supported) {
+        await Linking.openURL(googleMapsLocation);
+      } else {
+        Alert.alert('Lỗi', 'Không thể mở liên kết Google Maps');
+      }
+    } catch (error) {
+      console.error('Error opening Google Maps:', error);
+      Alert.alert('Lỗi', 'Không thể mở liên kết Google Maps');
+    }
+  };
+
   const validateForm = (): boolean => {
     if (!fullName.trim()) {
       Alert.alert('Lỗi', 'Vui lòng nhập họ tên');
@@ -238,6 +262,7 @@ export default function EditCustomerScreen() {
           ward: selectedWard ? getWardByCode(selectedProvince, selectedDistrict, selectedWard)?.name : undefined,
           street: street.trim() || undefined,
         },
+        googleMapsLocation: googleMapsLocation.trim() || undefined,
         hasInsurance,
         insuranceCompany: hasInsurance && selectedCompanies.length > 0 ? selectedCompanies : undefined,
         contractNumber: hasInsurance && contractNumber ? contractNumber.trim() : undefined,
@@ -449,6 +474,31 @@ export default function EditCustomerScreen() {
             placeholder="Nhập số nhà, tên đường"
             placeholderTextColor={colors.textSecondary}
           />
+
+          <Text style={commonStyles.label}>Vị trí Google Maps</Text>
+          <TextInput
+            style={commonStyles.input}
+            value={googleMapsLocation}
+            onChangeText={setGoogleMapsLocation}
+            placeholder="Dán liên kết Google Maps"
+            placeholderTextColor={colors.textSecondary}
+            autoCapitalize="none"
+          />
+          {googleMapsLocation.trim() !== '' && (
+            <TouchableOpacity
+              style={styles.openMapButton}
+              onPress={handleOpenGoogleMaps}
+            >
+              <IconSymbol name="map.fill" size={20} color={colors.primary} />
+              <Text style={styles.openMapButtonText}>Mở Google Maps</Text>
+            </TouchableOpacity>
+          )}
+          <View style={styles.infoBox}>
+            <IconSymbol name="info.circle" size={20} color={colors.primary} />
+            <Text style={styles.infoText}>
+              Dán liên kết từ Google Maps để lưu vị trí nhà khách hàng. Bạn có thể bấm vào để mở chỉ đường.
+            </Text>
+          </View>
         </View>
 
         <View style={styles.section}>
@@ -1007,6 +1057,21 @@ const styles = StyleSheet.create({
   selectedCompanyText: {
     fontSize: 14,
     color: colors.text,
+  },
+  openMapButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.inputBackground,
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    gap: 8,
+  },
+  openMapButtonText: {
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: '600',
   },
   infoBox: {
     flexDirection: 'row',
