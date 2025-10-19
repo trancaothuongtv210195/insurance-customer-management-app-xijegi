@@ -1,91 +1,216 @@
-import React from "react";
-import { View, Text, StyleSheet, ScrollView, Platform } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { IconSymbol } from "@/components/IconSymbol";
-import { GlassView } from "expo-glass-effect";
-import { useTheme } from "@react-navigation/native";
+
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { IconSymbol } from '@/components/IconSymbol';
+import React from 'react';
+import { useTheme } from '@react-navigation/native';
+import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity, Alert } from 'react-native';
+import { colors, commonStyles } from '@/styles/commonStyles';
+import { useCustomers } from '@/contexts/CustomerContext';
 
 export default function ProfileScreen() {
   const theme = useTheme();
+  const { customers } = useCustomers();
+
+  const totalCustomers = customers.length;
+  const insuredCustomers = customers.filter(c => c.hasInsurance).length;
+  const uninsuredCustomers = totalCustomers - insuredCustomers;
+  const overdueCustomers = customers.filter(c => {
+    if (!c.nextPremiumDueDate) return false;
+    return new Date(c.nextPremiumDueDate) < new Date();
+  }).length;
+
+  const handleExport = () => {
+    Alert.alert('Xuất dữ liệu', 'Tính năng xuất dữ liệu sẽ được cập nhật trong phiên bản tiếp theo');
+  };
+
+  const handleBackup = () => {
+    Alert.alert('Sao lưu', 'Tính năng sao lưu sẽ được cập nhật trong phiên bản tiếp theo');
+  };
+
+  const handleAbout = () => {
+    Alert.alert(
+      'Về ứng dụng',
+      'Ứng dụng quản lý khách hàng bảo hiểm nhân thọ\nPhiên bản 1.0.0\n\nỨng dụng giúp bạn quản lý thông tin khách hàng, theo dõi hợp đồng bảo hiểm và nhắc nhở đóng phí.'
+    );
+  };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
+    <View style={[commonStyles.container, { backgroundColor: colors.background }]}>
+      {Platform.OS !== 'ios' && (
+        <View style={styles.androidHeader}>
+          <Text style={styles.androidHeaderTitle}>Cài đặt</Text>
+        </View>
+      )}
+      
       <ScrollView
         style={styles.container}
         contentContainerStyle={[
-          styles.contentContainer,
-          Platform.OS !== 'ios' && styles.contentContainerWithTabBar
+          styles.scrollContent,
+          Platform.OS !== 'ios' && styles.scrollContentWithTabBar,
         ]}
       >
-        <GlassView style={[
-          styles.profileHeader,
-          Platform.OS !== 'ios' && { backgroundColor: theme.dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }
-        ]} glassEffectStyle="regular">
-          <IconSymbol name="person.circle.fill" size={80} color={theme.colors.primary} />
-          <Text style={[styles.name, { color: theme.colors.text }]}>John Doe</Text>
-          <Text style={[styles.email, { color: theme.dark ? '#98989D' : '#666' }]}>john.doe@example.com</Text>
-        </GlassView>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Thống kê</Text>
+          
+          <View style={styles.statsGrid}>
+            <View style={[styles.statCard, { backgroundColor: colors.primary }]}>
+              <IconSymbol name="person.3.fill" size={32} color="#FFFFFF" />
+              <Text style={styles.statValue}>{totalCustomers}</Text>
+              <Text style={styles.statLabel}>Tổng khách hàng</Text>
+            </View>
 
-        <GlassView style={[
-          styles.section,
-          Platform.OS !== 'ios' && { backgroundColor: theme.dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }
-        ]} glassEffectStyle="regular">
-          <View style={styles.infoRow}>
-            <IconSymbol name="phone.fill" size={20} color={theme.dark ? '#98989D' : '#666'} />
-            <Text style={[styles.infoText, { color: theme.colors.text }]}>+1 (555) 123-4567</Text>
+            <View style={[styles.statCard, { backgroundColor: colors.success }]}>
+              <IconSymbol name="checkmark.circle.fill" size={32} color="#FFFFFF" />
+              <Text style={styles.statValue}>{insuredCustomers}</Text>
+              <Text style={styles.statLabel}>Đã tham gia BH</Text>
+            </View>
+
+            <View style={[styles.statCard, { backgroundColor: colors.secondary }]}>
+              <IconSymbol name="xmark.circle.fill" size={32} color="#FFFFFF" />
+              <Text style={styles.statValue}>{uninsuredCustomers}</Text>
+              <Text style={styles.statLabel}>Chưa tham gia BH</Text>
+            </View>
+
+            <View style={[styles.statCard, { backgroundColor: colors.danger }]}>
+              <IconSymbol name="exclamationmark.triangle.fill" size={32} color="#FFFFFF" />
+              <Text style={styles.statValue}>{overdueCustomers}</Text>
+              <Text style={styles.statLabel}>Quá hạn đóng phí</Text>
+            </View>
           </View>
-          <View style={styles.infoRow}>
-            <IconSymbol name="location.fill" size={20} color={theme.dark ? '#98989D' : '#666'} />
-            <Text style={[styles.infoText, { color: theme.colors.text }]}>San Francisco, CA</Text>
-          </View>
-        </GlassView>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Dữ liệu</Text>
+          
+          <TouchableOpacity style={styles.menuItem} onPress={handleExport}>
+            <View style={styles.menuItemLeft}>
+              <IconSymbol name="square.and.arrow.up" size={24} color={colors.primary} />
+              <Text style={styles.menuItemText}>Xuất dữ liệu</Text>
+            </View>
+            <IconSymbol name="chevron.right" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem} onPress={handleBackup}>
+            <View style={styles.menuItemLeft}>
+              <IconSymbol name="arrow.clockwise.circle" size={24} color={colors.primary} />
+              <Text style={styles.menuItemText}>Sao lưu & Khôi phục</Text>
+            </View>
+            <IconSymbol name="chevron.right" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Thông tin</Text>
+          
+          <TouchableOpacity style={styles.menuItem} onPress={handleAbout}>
+            <View style={styles.menuItemLeft}>
+              <IconSymbol name="info.circle" size={24} color={colors.primary} />
+              <Text style={styles.menuItemText}>Về ứng dụng</Text>
+            </View>
+            <IconSymbol name="chevron.right" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            Ứng dụng quản lý khách hàng bảo hiểm nhân thọ
+          </Text>
+          <Text style={styles.footerVersion}>Phiên bản 1.0.0</Text>
+        </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    // backgroundColor handled dynamically
-  },
   container: {
     flex: 1,
   },
-  contentContainer: {
-    padding: 20,
-  },
-  contentContainerWithTabBar: {
-    paddingBottom: 100, // Extra padding for floating tab bar
-  },
-  profileHeader: {
-    alignItems: 'center',
-    borderRadius: 12,
-    padding: 32,
-    marginBottom: 16,
-    gap: 12,
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    // color handled dynamically
-  },
-  email: {
-    fontSize: 16,
-    // color handled dynamically
-  },
-  section: {
-    borderRadius: 12,
-    padding: 20,
-    gap: 12,
-  },
-  infoRow: {
+  androidHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  androidHeaderTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  scrollContent: {
+    paddingBottom: 32,
+  },
+  scrollContentWithTabBar: {
+    paddingBottom: 100,
+  },
+  section: {
+    padding: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 16,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
   },
-  infoText: {
+  statCard: {
+    flex: 1,
+    minWidth: '45%',
+    padding: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginTop: 8,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  menuItemText: {
     fontSize: 16,
-    // color handled dynamically
+    color: colors.text,
+    marginLeft: 12,
+    fontWeight: '500',
+  },
+  footer: {
+    alignItems: 'center',
+    padding: 32,
+  },
+  footerText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  footerVersion: {
+    fontSize: 12,
+    color: colors.textSecondary,
   },
 });
