@@ -72,7 +72,7 @@ export const CustomerCard = ({ customer, selectMode = false, isSelected = false,
         <View style={styles.divider} />
 
         <View style={styles.infoSection}>
-          {customer.hasInsurance && customer.insuranceCompany && customer.insuranceCompany.length > 0 && (
+          {customer.hasInsurance && customer.insuranceCompany && Array.isArray(customer.insuranceCompany) && customer.insuranceCompany.length > 0 && (
             <View style={styles.infoRow}>
               <IconSymbol name="building.2.fill" size={16} color={colors.textSecondary} />
               <Text style={styles.infoText} numberOfLines={1}>
