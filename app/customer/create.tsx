@@ -30,7 +30,6 @@ export default function CreateCustomerScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   
-  // Address fields
   const [selectedProvince, setSelectedProvince] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedWard, setSelectedWard] = useState('');
@@ -156,7 +155,6 @@ export default function CreateCustomerScreen() {
 
     setLoading(true);
     try {
-      // Calculate next premium due date automatically
       let nextDueDate: string | undefined;
       if (hasInsurance && insuranceStartDate && premiumFrequency) {
         const calculatedDate = calculateNextPremiumDueDate(insuranceStartDate, premiumFrequency);
