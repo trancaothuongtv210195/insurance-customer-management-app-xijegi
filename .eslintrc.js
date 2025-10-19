@@ -24,11 +24,7 @@ module.exports = {
   },
   settings: {
     'import/resolver': {
-      'babel-module': {
-        alias: {
-          '@': './'
-        }
-      },
+      'babel-module': {},
       node: {
         extensions: ['.js', '.jsx', '.ts', '.tsx']
       }
