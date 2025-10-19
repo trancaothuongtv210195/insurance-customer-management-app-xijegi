@@ -21,6 +21,8 @@ import { calculateNextPremiumDueDate } from '@/utils/dateUtils';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 
+const CUSTOMER_STATUSES = ['Đã ký', 'Tiềm Năng', 'Loại bỏ'] as const;
+
 export default function EditCustomerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { getCustomerById, updateCustomer, isPhoneNumberUnique, isContractNumberUnique } = useCustomers();
@@ -55,6 +57,14 @@ export default function EditCustomerScreen() {
   const [videos, setVideos] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // New fields
+  const [customerStatus, setCustomerStatus] = useState<'Đã ký' | 'Tiềm Năng' | 'Loại bỏ'>('Tiềm Năng');
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
+  const [paidUntil, setPaidUntil] = useState<Date | undefined>(undefined);
+  const [showPaidUntilPicker, setShowPaidUntilPicker] = useState(false);
+  const [meetingDate, setMeetingDate] = useState<Date | undefined>(undefined);
+  const [showMeetingDatePicker, setShowMeetingDatePicker] = useState(false);
+
   useEffect(() => {
     if (customer) {
       setAvatar(customer.avatar || '');
@@ -88,6 +98,11 @@ export default function EditCustomerScreen() {
       setNotes(customer.notes || '');
       setImages(customer.images || []);
       setVideos(customer.videos || []);
+      
+      // Set new fields
+      setCustomerStatus(customer.customerStatus || 'Tiềm Năng');
+      setPaidUntil(customer.paidUntil ? new Date(customer.paidUntil) : undefined);
+      setMeetingDate(customer.meetingDate ? new Date(customer.meetingDate) : undefined);
     }
   }, [customer]);
 
@@ -233,6 +248,9 @@ export default function EditCustomerScreen() {
         notes: notes.trim(),
         images: images.length > 0 ? images : undefined,
         videos: videos.length > 0 ? videos : undefined,
+        customerStatus,
+        paidUntil: paidUntil ? paidUntil.toISOString() : undefined,
+        meetingDate: meetingDate ? meetingDate.toISOString() : undefined,
       });
 
       Alert.alert('Thành công', 'Đã cập nhật thông tin khách hàng', [
@@ -434,6 +452,81 @@ export default function EditCustomerScreen() {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Phân loại khách hàng</Text>
+
+          <Text style={commonStyles.label}>Trạng thái khách hàng *</Text>
+          <TouchableOpacity
+            style={[commonStyles.input, styles.pickerButton]}
+            onPress={() => setShowStatusPicker(!showStatusPicker)}
+          >
+            <Text style={styles.pickerText}>{customerStatus}</Text>
+            <IconSymbol name="chevron.down" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+          {showStatusPicker && (
+            <View style={styles.pickerList}>
+              {CUSTOMER_STATUSES.map((status) => (
+                <TouchableOpacity
+                  key={status}
+                  style={styles.pickerItem}
+                  onPress={() => {
+                    setCustomerStatus(status);
+                    setShowStatusPicker(false);
+                  }}
+                >
+                  <Text style={styles.pickerItemText}>{status}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          <Text style={commonStyles.label}>Ngày gặp khách hàng</Text>
+          <TouchableOpacity
+            style={[commonStyles.input, styles.dateButton]}
+            onPress={() => setShowMeetingDatePicker(true)}
+          >
+            <Text style={styles.dateText}>
+              {meetingDate ? meetingDate.toLocaleDateString('vi-VN') : 'Chọn ngày gặp'}
+            </Text>
+            <IconSymbol name="calendar" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+          {showMeetingDatePicker && (
+            <DateTimePicker
+              value={meetingDate || new Date()}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(event, date) => {
+                if (event.type === 'dismissed') {
+                  setShowMeetingDatePicker(false);
+                  return;
+                }
+                if (date) {
+                  setMeetingDate(date);
+                }
+                if (Platform.OS === 'android') {
+                  setShowMeetingDatePicker(false);
+                }
+              }}
+            />
+          )}
+          {showMeetingDatePicker && Platform.OS === 'ios' && (
+            <TouchableOpacity
+              style={styles.datePickerDoneButton}
+              onPress={() => setShowMeetingDatePicker(false)}
+            >
+              <Text style={styles.datePickerDoneText}>Xong</Text>
+            </TouchableOpacity>
+          )}
+          {meetingDate && (
+            <TouchableOpacity
+              style={styles.clearDateButton}
+              onPress={() => setMeetingDate(undefined)}
+            >
+              <Text style={styles.clearDateText}>Xóa ngày gặp</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Thông tin bảo hiểm</Text>
 
           <TouchableOpacity
@@ -584,6 +677,52 @@ export default function EditCustomerScreen() {
                     </TouchableOpacity>
                   ))}
                 </View>
+              )}
+
+              <Text style={commonStyles.label}>Đã đóng phí đến ngày</Text>
+              <TouchableOpacity
+                style={[commonStyles.input, styles.dateButton]}
+                onPress={() => setShowPaidUntilPicker(true)}
+              >
+                <Text style={styles.dateText}>
+                  {paidUntil ? paidUntil.toLocaleDateString('vi-VN') : 'Chọn ngày đã đóng'}
+                </Text>
+                <IconSymbol name="calendar" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+              {showPaidUntilPicker && (
+                <DateTimePicker
+                  value={paidUntil || new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={(event, date) => {
+                    if (event.type === 'dismissed') {
+                      setShowPaidUntilPicker(false);
+                      return;
+                    }
+                    if (date) {
+                      setPaidUntil(date);
+                    }
+                    if (Platform.OS === 'android') {
+                      setShowPaidUntilPicker(false);
+                    }
+                  }}
+                />
+              )}
+              {showPaidUntilPicker && Platform.OS === 'ios' && (
+                <TouchableOpacity
+                  style={styles.datePickerDoneButton}
+                  onPress={() => setShowPaidUntilPicker(false)}
+                >
+                  <Text style={styles.datePickerDoneText}>Xong</Text>
+                </TouchableOpacity>
+              )}
+              {paidUntil && (
+                <TouchableOpacity
+                  style={styles.clearDateButton}
+                  onPress={() => setPaidUntil(undefined)}
+                >
+                  <Text style={styles.clearDateText}>Xóa ngày đã đóng</Text>
+                </TouchableOpacity>
               )}
 
               <View style={styles.infoBox}>
@@ -747,6 +886,18 @@ const styles = StyleSheet.create({
   datePickerDoneText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  clearDateButton: {
+    backgroundColor: colors.secondary,
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  clearDateText: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '600',
   },
   switchContainer: {
