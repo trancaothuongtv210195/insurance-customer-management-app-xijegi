@@ -9,7 +9,7 @@ module.exports = {
     'plugin:react/jsx-runtime'
   ],
   parser: '@typescript-eslint/parser',
-  plugins: ['@typescript-eslint', 'react', 'import'],
+  plugins: ['@typescript-eslint', 'react'],
   root: true,
   parserOptions: {
     ecmaVersion: 'latest',
@@ -23,11 +23,8 @@ module.exports = {
     browser: true,
   },
   settings: {
-    'import/resolver': {
-      'babel-module': {},
-      node: {
-        extensions: ['.js', '.jsx', '.ts', '.tsx']
-      }
+    react: {
+      version: 'detect'
     }
   },
   rules: {
@@ -39,7 +36,6 @@ module.exports = {
     "@typescript-eslint/no-empty-object-type": "off",
     "@typescript-eslint/no-wrapper-object-types": "off",
     "react/no-unescaped-entities": "off",
-    "import/no-unresolved": "off",
     "prefer-const": "off",
     "react/prop-types": "off",
     "no-case-declarations": "off",
