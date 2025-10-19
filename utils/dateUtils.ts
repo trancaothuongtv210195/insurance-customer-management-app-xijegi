@@ -50,3 +50,53 @@ export const getAge = (dateOfBirth: string): number => {
   
   return age;
 };
+
+export const calculateNextPremiumDueDate = (
+  startDate: Date,
+  frequency: 'monthly' | 'quarterly' | 'semi-annual' | 'annual'
+): Date => {
+  const today = new Date();
+  const start = new Date(startDate);
+  let nextDue = new Date(start);
+
+  // Calculate the interval in months
+  let intervalMonths = 0;
+  switch (frequency) {
+    case 'monthly':
+      intervalMonths = 1;
+      break;
+    case 'quarterly':
+      intervalMonths = 3;
+      break;
+    case 'semi-annual':
+      intervalMonths = 6;
+      break;
+    case 'annual':
+      intervalMonths = 12;
+      break;
+  }
+
+  // Keep adding intervals until we get a date in the future
+  while (nextDue <= today) {
+    nextDue.setMonth(nextDue.getMonth() + intervalMonths);
+  }
+
+  return nextDue;
+};
+
+export const formatAddress = (address?: {
+  province?: string;
+  district?: string;
+  ward?: string;
+  street?: string;
+}): string => {
+  if (!address) return '';
+  
+  const parts = [];
+  if (address.street) parts.push(address.street);
+  if (address.ward) parts.push(address.ward);
+  if (address.district) parts.push(address.district);
+  if (address.province) parts.push(address.province);
+  
+  return parts.join(', ');
+};

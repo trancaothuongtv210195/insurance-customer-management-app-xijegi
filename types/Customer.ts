@@ -5,16 +5,22 @@ export interface Customer {
   fullName: string;
   dateOfBirth: string;
   phoneNumber: string;
-  address?: string;
+  address?: {
+    province?: string;
+    district?: string;
+    ward?: string;
+    street?: string;
+  };
   hasInsurance: boolean;
-  insuranceCompany?: string;
+  insuranceCompany?: string[];
   contractNumber?: string;
-  securityNumber?: string;
   insuranceStartDate?: string;
   premiumAmount?: number;
   premiumFrequency?: 'monthly' | 'quarterly' | 'semi-annual' | 'annual';
   nextPremiumDueDate?: string;
   notes?: string;
+  images?: string[];
+  videos?: string[];
   createdAt: string;
   updatedAt: string;
 }

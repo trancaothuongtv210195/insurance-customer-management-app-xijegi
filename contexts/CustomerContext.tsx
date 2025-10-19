@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Customer, SearchFilters } from '@/types/Customer';
+import { formatAddress } from '@/utils/dateUtils';
 
 interface CustomerContextType {
   customers: Customer[];
@@ -95,16 +96,19 @@ export const CustomerProvider = ({ children }: { children: ReactNode }) => {
       // Search text filter (name, phone, address)
       if (filters.searchText) {
         const searchLower = filters.searchText.toLowerCase();
+        const addressStr = formatAddress(customer.address).toLowerCase();
         const matchesSearch =
           customer.fullName.toLowerCase().includes(searchLower) ||
           customer.phoneNumber.includes(searchLower) ||
-          (customer.address && customer.address.toLowerCase().includes(searchLower));
+          addressStr.includes(searchLower);
         if (!matchesSearch) return false;
       }
 
       // Insurance company filter
-      if (filters.insuranceCompany && customer.insuranceCompany !== filters.insuranceCompany) {
-        return false;
+      if (filters.insuranceCompany) {
+        if (!customer.insuranceCompany || !customer.insuranceCompany.includes(filters.insuranceCompany)) {
+          return false;
+        }
       }
 
       // Has insurance filter
