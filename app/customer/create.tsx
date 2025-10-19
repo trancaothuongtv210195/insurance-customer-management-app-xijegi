@@ -172,20 +172,27 @@ export default function CreateCustomerScreen() {
               mode="date"
               display={Platform.OS === 'ios' ? 'spinner' : 'default'}
               onChange={(event, date) => {
-                if (Platform.OS === 'android') {
+                if (event.type === 'dismissed') {
                   setShowDatePicker(false);
+                  return;
                 }
-                if (event.type === 'set' && date) {
+                if (date) {
                   setDateOfBirth(date);
-                  if (Platform.OS === 'ios') {
-                    setShowDatePicker(false);
-                  }
-                } else if (event.type === 'dismissed') {
+                }
+                if (Platform.OS === 'android') {
                   setShowDatePicker(false);
                 }
               }}
               maximumDate={new Date()}
             />
+          )}
+          {showDatePicker && Platform.OS === 'ios' && (
+            <TouchableOpacity
+              style={styles.datePickerDoneButton}
+              onPress={() => setShowDatePicker(false)}
+            >
+              <Text style={styles.datePickerDoneText}>Xong</Text>
+            </TouchableOpacity>
           )}
 
           <Text style={commonStyles.label}>Số điện thoại *</Text>
@@ -235,18 +242,20 @@ export default function CreateCustomerScreen() {
               </TouchableOpacity>
               {showCompanyPicker && (
                 <View style={styles.pickerList}>
-                  {INSURANCE_COMPANIES.map((company) => (
-                    <TouchableOpacity
-                      key={company}
-                      style={styles.pickerItem}
-                      onPress={() => {
-                        setInsuranceCompany(company);
-                        setShowCompanyPicker(false);
-                      }}
-                    >
-                      <Text style={styles.pickerItemText}>{company}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  <ScrollView style={styles.pickerScrollView}>
+                    {INSURANCE_COMPANIES.map((company) => (
+                      <TouchableOpacity
+                        key={company}
+                        style={styles.pickerItem}
+                        onPress={() => {
+                          setInsuranceCompany(company);
+                          setShowCompanyPicker(false);
+                        }}
+                      >
+                        <Text style={styles.pickerItemText}>{company}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
                 </View>
               )}
 
@@ -283,20 +292,27 @@ export default function CreateCustomerScreen() {
                   mode="date"
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={(event, date) => {
-                    if (Platform.OS === 'android') {
+                    if (event.type === 'dismissed') {
                       setShowStartDatePicker(false);
+                      return;
                     }
-                    if (event.type === 'set' && date) {
+                    if (date) {
                       setInsuranceStartDate(date);
-                      if (Platform.OS === 'ios') {
-                        setShowStartDatePicker(false);
-                      }
-                    } else if (event.type === 'dismissed') {
+                    }
+                    if (Platform.OS === 'android') {
                       setShowStartDatePicker(false);
                     }
                   }}
                   maximumDate={new Date()}
                 />
+              )}
+              {showStartDatePicker && Platform.OS === 'ios' && (
+                <TouchableOpacity
+                  style={styles.datePickerDoneButton}
+                  onPress={() => setShowStartDatePicker(false)}
+                >
+                  <Text style={styles.datePickerDoneText}>Xong</Text>
+                </TouchableOpacity>
               )}
 
               <Text style={commonStyles.label}>Số tiền phí bảo hiểm (VNĐ)</Text>
@@ -350,19 +366,26 @@ export default function CreateCustomerScreen() {
                   mode="date"
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={(event, date) => {
-                    if (Platform.OS === 'android') {
+                    if (event.type === 'dismissed') {
                       setShowDueDatePicker(false);
+                      return;
                     }
-                    if (event.type === 'set' && date) {
+                    if (date) {
                       setNextPremiumDueDate(date);
-                      if (Platform.OS === 'ios') {
-                        setShowDueDatePicker(false);
-                      }
-                    } else if (event.type === 'dismissed') {
+                    }
+                    if (Platform.OS === 'android') {
                       setShowDueDatePicker(false);
                     }
                   }}
                 />
+              )}
+              {showDueDatePicker && Platform.OS === 'ios' && (
+                <TouchableOpacity
+                  style={styles.datePickerDoneButton}
+                  onPress={() => setShowDueDatePicker(false)}
+                >
+                  <Text style={styles.datePickerDoneText}>Xong</Text>
+                </TouchableOpacity>
               )}
             </>
           )}
@@ -461,6 +484,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
   },
+  datePickerDoneButton: {
+    backgroundColor: colors.primary,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  datePickerDoneText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   switchContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -514,6 +550,9 @@ const styles = StyleSheet.create({
     maxHeight: 200,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  pickerScrollView: {
+    maxHeight: 200,
   },
   pickerItem: {
     padding: 16,
