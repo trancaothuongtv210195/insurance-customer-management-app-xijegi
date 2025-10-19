@@ -18,6 +18,9 @@ import { useCustomers } from '@/contexts/CustomerContext';
 import { SearchFilters } from '@/types/Customer';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { INSURANCE_COMPANIES } from '@/data/insuranceCompanies';
+import DateTimePicker from '@react-native-community/datetimepicker';
+
+const CUSTOMER_STATUSES = ['Đã ký', 'Tiềm Năng', 'Loại bỏ'] as const;
 
 export default function SearchCustomerScreen() {
   const { searchCustomers, deleteMultipleCustomers } = useCustomers();
@@ -30,6 +33,16 @@ export default function SearchCustomerScreen() {
   const [showCompanyPicker, setShowCompanyPicker] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  
+  // New filters
+  const [customerStatus, setCustomerStatus] = useState<'Đã ký' | 'Tiềm Năng' | 'Loại bỏ' | undefined>();
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
+  const [meetingDateFrom, setMeetingDateFrom] = useState<Date | undefined>();
+  const [meetingDateTo, setMeetingDateTo] = useState<Date | undefined>();
+  const [showMeetingDateFromPicker, setShowMeetingDateFromPicker] = useState(false);
+  const [showMeetingDateToPicker, setShowMeetingDateToPicker] = useState(false);
+  const [meetingMonth, setMeetingMonth] = useState<number | undefined>();
+  const [meetingYear, setMeetingYear] = useState<number | undefined>();
 
   const filters: SearchFilters = {
     searchText: searchText || undefined,
@@ -38,6 +51,11 @@ export default function SearchCustomerScreen() {
     dueWithin30Days,
     overdue,
     birthdayWithin5Days,
+    customerStatus,
+    meetingDateFrom: meetingDateFrom?.toISOString(),
+    meetingDateTo: meetingDateTo?.toISOString(),
+    meetingMonth,
+    meetingYear,
   };
 
   const results = searchCustomers(filters);
@@ -49,6 +67,11 @@ export default function SearchCustomerScreen() {
     setDueWithin30Days(false);
     setOverdue(false);
     setBirthdayWithin5Days(false);
+    setCustomerStatus(undefined);
+    setMeetingDateFrom(undefined);
+    setMeetingDateTo(undefined);
+    setMeetingMonth(undefined);
+    setMeetingYear(undefined);
   };
 
   const toggleSelectMode = () => {
@@ -102,6 +125,23 @@ export default function SearchCustomerScreen() {
     );
   };
 
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
+  const months = [
+    { value: 0, label: 'Tháng 1' },
+    { value: 1, label: 'Tháng 2' },
+    { value: 2, label: 'Tháng 3' },
+    { value: 3, label: 'Tháng 4' },
+    { value: 4, label: 'Tháng 5' },
+    { value: 5, label: 'Tháng 6' },
+    { value: 6, label: 'Tháng 7' },
+    { value: 7, label: 'Tháng 8' },
+    { value: 8, label: 'Tháng 9' },
+    { value: 9, label: 'Tháng 10' },
+    { value: 10, label: 'Tháng 11' },
+    { value: 11, label: 'Tháng 12' },
+  ];
+
   return (
     <>
       <Stack.Screen
@@ -141,6 +181,46 @@ export default function SearchCustomerScreen() {
               <TouchableOpacity onPress={() => setSearchText('')}>
                 <IconSymbol name="xmark.circle.fill" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.filterSection}>
+            <Text style={styles.filterLabel}>Loại khách hàng</Text>
+            <TouchableOpacity
+              style={[commonStyles.input, styles.pickerButton]}
+              onPress={() => setShowStatusPicker(!showStatusPicker)}
+            >
+              <Text style={customerStatus ? styles.pickerText : styles.pickerPlaceholder}>
+                {customerStatus || 'Tất cả loại khách hàng'}
+              </Text>
+              <IconSymbol name="chevron.down" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+            {showStatusPicker && (
+              <View style={styles.pickerList}>
+                <ScrollView style={styles.pickerScrollView}>
+                  <TouchableOpacity
+                    style={styles.pickerItem}
+                    onPress={() => {
+                      setCustomerStatus(undefined);
+                      setShowStatusPicker(false);
+                    }}
+                  >
+                    <Text style={styles.pickerItemText}>Tất cả loại khách hàng</Text>
+                  </TouchableOpacity>
+                  {CUSTOMER_STATUSES.map((status) => (
+                    <TouchableOpacity
+                      key={status}
+                      style={styles.pickerItem}
+                      onPress={() => {
+                        setCustomerStatus(status);
+                        setShowStatusPicker(false);
+                      }}
+                    >
+                      <Text style={styles.pickerItemText}>{status}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
             )}
           </View>
 
@@ -236,6 +316,100 @@ export default function SearchCustomerScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+          </View>
+
+          <View style={styles.filterSection}>
+            <Text style={styles.filterLabel}>Ngày gặp khách hàng</Text>
+            <View style={styles.dateRangeContainer}>
+              <View style={styles.dateRangeItem}>
+                <Text style={styles.dateRangeLabel}>Từ ngày</Text>
+                <TouchableOpacity
+                  style={[commonStyles.input, styles.dateButton]}
+                  onPress={() => setShowMeetingDateFromPicker(true)}
+                >
+                  <Text style={meetingDateFrom ? styles.dateText : styles.pickerPlaceholder}>
+                    {meetingDateFrom ? meetingDateFrom.toLocaleDateString('vi-VN') : 'Chọn ngày'}
+                  </Text>
+                  <IconSymbol name="calendar" size={18} color={colors.textSecondary} />
+                </TouchableOpacity>
+                {meetingDateFrom && (
+                  <TouchableOpacity onPress={() => setMeetingDateFrom(undefined)}>
+                    <Text style={styles.clearDateText}>Xóa</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              <View style={styles.dateRangeItem}>
+                <Text style={styles.dateRangeLabel}>Đến ngày</Text>
+                <TouchableOpacity
+                  style={[commonStyles.input, styles.dateButton]}
+                  onPress={() => setShowMeetingDateToPicker(true)}
+                >
+                  <Text style={meetingDateTo ? styles.dateText : styles.pickerPlaceholder}>
+                    {meetingDateTo ? meetingDateTo.toLocaleDateString('vi-VN') : 'Chọn ngày'}
+                  </Text>
+                  <IconSymbol name="calendar" size={18} color={colors.textSecondary} />
+                </TouchableOpacity>
+                {meetingDateTo && (
+                  <TouchableOpacity onPress={() => setMeetingDateTo(undefined)}>
+                    <Text style={styles.clearDateText}>Xóa</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+            {showMeetingDateFromPicker && (
+              <DateTimePicker
+                value={meetingDateFrom || new Date()}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(event, date) => {
+                  if (event.type === 'dismissed') {
+                    setShowMeetingDateFromPicker(false);
+                    return;
+                  }
+                  if (date) {
+                    setMeetingDateFrom(date);
+                  }
+                  if (Platform.OS === 'android') {
+                    setShowMeetingDateFromPicker(false);
+                  }
+                }}
+              />
+            )}
+            {showMeetingDateFromPicker && Platform.OS === 'ios' && (
+              <TouchableOpacity
+                style={styles.datePickerDoneButton}
+                onPress={() => setShowMeetingDateFromPicker(false)}
+              >
+                <Text style={styles.datePickerDoneText}>Xong</Text>
+              </TouchableOpacity>
+            )}
+            {showMeetingDateToPicker && (
+              <DateTimePicker
+                value={meetingDateTo || new Date()}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(event, date) => {
+                  if (event.type === 'dismissed') {
+                    setShowMeetingDateToPicker(false);
+                    return;
+                  }
+                  if (date) {
+                    setMeetingDateTo(date);
+                  }
+                  if (Platform.OS === 'android') {
+                    setShowMeetingDateToPicker(false);
+                  }
+                }}
+              />
+            )}
+            {showMeetingDateToPicker && Platform.OS === 'ios' && (
+              <TouchableOpacity
+                style={styles.datePickerDoneButton}
+                onPress={() => setShowMeetingDateToPicker(false)}
+              >
+                <Text style={styles.datePickerDoneText}>Xong</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.filterSection}>
@@ -341,7 +515,7 @@ export default function SearchCustomerScreen() {
 
 const styles = StyleSheet.create({
   filtersContainer: {
-    maxHeight: 350,
+    maxHeight: 400,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -427,6 +601,46 @@ const styles = StyleSheet.create({
   },
   filterButtonTextActive: {
     color: '#FFFFFF',
+  },
+  dateRangeContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  dateRangeItem: {
+    flex: 1,
+  },
+  dateRangeLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  dateButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dateText: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  clearDateText: {
+    fontSize: 12,
+    color: colors.danger,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  datePickerDoneButton: {
+    backgroundColor: colors.primary,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  datePickerDoneText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   quickFilter: {
     flexDirection: 'row',

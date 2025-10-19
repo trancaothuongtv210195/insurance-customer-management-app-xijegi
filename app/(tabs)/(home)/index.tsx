@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Platform, Alert } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -8,16 +8,35 @@ import { useCustomers } from '@/contexts/CustomerContext';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { useTheme } from '@react-navigation/native';
 
+type CustomerStatus = 'Đã ký' | 'Tiềm Năng' | 'Loại bỏ';
+
 export default function HomeScreen() {
   const theme = useTheme();
   const { customers, loading, deleteMultipleCustomers } = useCustomers();
   const [refreshing, setRefreshing] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<CustomerStatus | 'all'>('all');
+
+  // Group customers by status
+  const customersByStatus = useMemo(() => {
+    const grouped = {
+      'Đã ký': customers.filter(c => c.customerStatus === 'Đã ký'),
+      'Tiềm Năng': customers.filter(c => c.customerStatus === 'Tiềm Năng'),
+      'Loại bỏ': customers.filter(c => c.customerStatus === 'Loại bỏ'),
+    };
+    return grouped;
+  }, [customers]);
+
+  const displayedCustomers = useMemo(() => {
+    if (selectedCategory === 'all') {
+      return customers;
+    }
+    return customersByStatus[selectedCategory];
+  }, [customers, customersByStatus, selectedCategory]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // Simulate refresh
     setTimeout(() => setRefreshing(false), 1000);
   };
 
@@ -35,10 +54,10 @@ export default function HomeScreen() {
   };
 
   const selectAll = () => {
-    if (selectedIds.length === customers.length) {
+    if (selectedIds.length === displayedCustomers.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(customers.map(c => c.id));
+      setSelectedIds(displayedCustomers.map(c => c.id));
     }
   };
 
@@ -101,7 +120,7 @@ export default function HomeScreen() {
           style={styles.headerButton}
         >
           <Text style={styles.headerButtonText}>
-            {selectedIds.length === customers.length ? 'Bỏ chọn' : 'Chọn tất cả'}
+            {selectedIds.length === displayedCustomers.length ? 'Bỏ chọn' : 'Chọn tất cả'}
           </Text>
         </TouchableOpacity>
       );
@@ -132,6 +151,43 @@ export default function HomeScreen() {
     </View>
   );
 
+  const renderCategoryTabs = () => (
+    <View style={styles.categoryTabs}>
+      <TouchableOpacity
+        style={[styles.categoryTab, selectedCategory === 'all' && styles.categoryTabActive]}
+        onPress={() => setSelectedCategory('all')}
+      >
+        <Text style={[styles.categoryTabText, selectedCategory === 'all' && styles.categoryTabTextActive]}>
+          Tất cả ({customers.length})
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.categoryTab, selectedCategory === 'Đã ký' && styles.categoryTabActive]}
+        onPress={() => setSelectedCategory('Đã ký')}
+      >
+        <Text style={[styles.categoryTabText, selectedCategory === 'Đã ký' && styles.categoryTabTextActive]}>
+          Đã ký ({customersByStatus['Đã ký'].length})
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.categoryTab, selectedCategory === 'Tiềm Năng' && styles.categoryTabActive]}
+        onPress={() => setSelectedCategory('Tiềm Năng')}
+      >
+        <Text style={[styles.categoryTabText, selectedCategory === 'Tiềm Năng' && styles.categoryTabTextActive]}>
+          Tiềm Năng ({customersByStatus['Tiềm Năng'].length})
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.categoryTab, selectedCategory === 'Loại bỏ' && styles.categoryTabActive]}
+        onPress={() => setSelectedCategory('Loại bỏ')}
+      >
+        <Text style={[styles.categoryTabText, selectedCategory === 'Loại bỏ' && styles.categoryTabTextActive]}>
+          Loại bỏ ({customersByStatus['Loại bỏ'].length})
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
     <>
       {Platform.OS === 'ios' && (
@@ -150,7 +206,7 @@ export default function HomeScreen() {
               <>
                 <TouchableOpacity onPress={selectAll} style={styles.headerButton}>
                   <Text style={styles.headerButtonText}>
-                    {selectedIds.length === customers.length ? 'Bỏ chọn' : 'Chọn tất cả'}
+                    {selectedIds.length === displayedCustomers.length ? 'Bỏ chọn' : 'Chọn tất cả'}
                   </Text>
                 </TouchableOpacity>
                 <Text style={styles.androidHeaderTitle}>Đã chọn {selectedIds.length}</Text>
@@ -172,8 +228,10 @@ export default function HomeScreen() {
           </View>
         )}
         
+        {renderCategoryTabs()}
+        
         <FlatList
-          data={customers}
+          data={displayedCustomers}
           renderItem={({ item }) => (
             <CustomerCard 
               customer={item}
@@ -185,7 +243,7 @@ export default function HomeScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={[
             styles.listContainer,
-            customers.length === 0 && styles.emptyListContainer,
+            displayedCustomers.length === 0 && styles.emptyListContainer,
             Platform.OS !== 'ios' && styles.listContainerWithTabBar,
             selectMode && styles.listContainerWithSelectBar,
           ]}
@@ -195,7 +253,7 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
         />
 
-        {!selectMode && customers.length > 0 && (
+        {!selectMode && displayedCustomers.length > 0 && (
           <TouchableOpacity
             style={styles.selectModeButton}
             onPress={toggleSelectMode}
@@ -247,6 +305,32 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: colors.text,
+  },
+  categoryTabs: {
+    flexDirection: 'row',
+    backgroundColor: colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingHorizontal: 8,
+  },
+  categoryTab: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  categoryTabActive: {
+    borderBottomColor: colors.primary,
+  },
+  categoryTabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  categoryTabTextActive: {
+    color: colors.primary,
   },
   listContainer: {
     paddingVertical: 8,

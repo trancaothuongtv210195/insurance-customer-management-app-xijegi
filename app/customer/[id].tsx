@@ -40,6 +40,14 @@ export default function CustomerDetailScreen() {
     Linking.openURL(`tel:${customer.phoneNumber}`);
   };
 
+  const handleOpenLocation = () => {
+    if (customer.googleMapsLocation) {
+      Linking.openURL(customer.googleMapsLocation).catch(() => {
+        Alert.alert('Lỗi', 'Không thể mở liên kết Google Maps');
+      });
+    }
+  };
+
   const handleEdit = () => {
     router.push(`/customer/edit/${customer.id}`);
   };
@@ -92,11 +100,26 @@ export default function CustomerDetailScreen() {
           <Text style={styles.name}>{customer.fullName}</Text>
           <Text style={styles.age}>{age} tuổi</Text>
           
+          {/* Customer Status Badge */}
+          <View style={[styles.statusBadge, { backgroundColor: 
+            customer.customerStatus === 'Đã ký' ? colors.success :
+            customer.customerStatus === 'Tiềm Năng' ? colors.accent :
+            colors.danger
+          }]}>
+            <Text style={styles.statusBadgeText}>{customer.customerStatus}</Text>
+          </View>
+          
           <View style={styles.actionButtons}>
             <TouchableOpacity style={styles.actionButton} onPress={handleCall}>
               <IconSymbol name="phone.fill" size={24} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>Gọi điện</Text>
             </TouchableOpacity>
+            {customer.googleMapsLocation && (
+              <TouchableOpacity style={[styles.actionButton, styles.mapButton]} onPress={handleOpenLocation}>
+                <IconSymbol name="map.fill" size={24} color="#FFFFFF" />
+                <Text style={styles.actionButtonText}>Chỉ đường</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -124,12 +147,36 @@ export default function CustomerDetailScreen() {
             </View>
           </View>
 
+          {customer.meetingDate && (
+            <View style={styles.infoRow}>
+              <IconSymbol name="calendar" size={20} color={colors.textSecondary} />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Ngày gặp khách hàng</Text>
+                <Text style={styles.infoValue}>{formatDate(customer.meetingDate)}</Text>
+              </View>
+            </View>
+          )}
+
           {customer.address && formatAddress(customer.address) && (
             <View style={styles.infoRow}>
               <IconSymbol name="location.fill" size={20} color={colors.textSecondary} />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Địa chỉ</Text>
                 <Text style={styles.infoValue}>{formatAddress(customer.address)}</Text>
+              </View>
+            </View>
+          )}
+
+          {customer.googleMapsLocation && (
+            <View style={styles.infoRow}>
+              <IconSymbol name="map.fill" size={20} color={colors.primary} />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Vị trí Google Maps</Text>
+                <TouchableOpacity onPress={handleOpenLocation}>
+                  <Text style={[styles.infoValue, styles.linkText]}>
+                    Nhấn để mở bản đồ và chỉ đường
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
           )}
@@ -196,6 +243,16 @@ export default function CustomerDetailScreen() {
                   <Text style={[styles.infoValue, styles.amountText]}>
                     {formatCurrency(customer.premiumAmount)}
                   </Text>
+                </View>
+              </View>
+            )}
+
+            {customer.paidUntil && (
+              <View style={styles.infoRow}>
+                <IconSymbol name="checkmark.circle.fill" size={20} color={colors.success} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Đã đóng phí đến</Text>
+                  <Text style={styles.infoValue}>{formatDate(customer.paidUntil)}</Text>
                 </View>
               </View>
             )}
@@ -315,7 +372,18 @@ const styles = StyleSheet.create({
   age: {
     fontSize: 16,
     color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  statusBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 16,
     marginBottom: 16,
+  },
+  statusBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   actionButtons: {
     flexDirection: 'row',
@@ -329,6 +397,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     gap: 8,
+  },
+  mapButton: {
+    backgroundColor: colors.success,
   },
   actionButtonText: {
     color: '#FFFFFF',
@@ -372,6 +443,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
     marginBottom: 2,
+  },
+  linkText: {
+    color: colors.primary,
+    textDecorationLine: 'underline',
   },
   amountText: {
     fontWeight: '700',

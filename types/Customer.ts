@@ -11,6 +11,7 @@ export interface Customer {
     ward?: string;
     street?: string;
   };
+  googleMapsLocation?: string; // Google Maps link
   hasInsurance: boolean;
   insuranceCompany?: string[];
   contractNumber?: string;
