@@ -16,6 +16,8 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { useCustomers } from '@/contexts/CustomerContext';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { INSURANCE_COMPANIES, PREMIUM_FREQUENCIES } from '@/data/insuranceCompanies';
+import { VIETNAM_ADDRESSES, getDistrictsByProvince, getWardsByDistrict } from '@/data/vietnamAddresses';
+import { calculateNextPremiumDueDate } from '@/utils/dateUtils';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -29,20 +31,28 @@ export default function EditCustomerScreen() {
   const [dateOfBirth, setDateOfBirth] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [address, setAddress] = useState('');
+  
+  // Address fields
+  const [selectedProvince, setSelectedProvince] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [selectedWard, setSelectedWard] = useState('');
+  const [street, setStreet] = useState('');
+  const [showProvincePicker, setShowProvincePicker] = useState(false);
+  const [showDistrictPicker, setShowDistrictPicker] = useState(false);
+  const [showWardPicker, setShowWardPicker] = useState(false);
+  
   const [hasInsurance, setHasInsurance] = useState(false);
-  const [insuranceCompany, setInsuranceCompany] = useState('');
+  const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
   const [showCompanyPicker, setShowCompanyPicker] = useState(false);
   const [contractNumber, setContractNumber] = useState('');
-  const [securityNumber, setSecurityNumber] = useState('');
   const [insuranceStartDate, setInsuranceStartDate] = useState(new Date());
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [premiumAmount, setPremiumAmount] = useState('');
   const [premiumFrequency, setPremiumFrequency] = useState<'monthly' | 'quarterly' | 'semi-annual' | 'annual'>('monthly');
   const [showFrequencyPicker, setShowFrequencyPicker] = useState(false);
-  const [nextPremiumDueDate, setNextPremiumDueDate] = useState(new Date());
-  const [showDueDatePicker, setShowDueDatePicker] = useState(false);
   const [notes, setNotes] = useState('');
+  const [images, setImages] = useState<string[]>([]);
+  const [videos, setVideos] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -51,16 +61,33 @@ export default function EditCustomerScreen() {
       setFullName(customer.fullName);
       setDateOfBirth(new Date(customer.dateOfBirth));
       setPhoneNumber(customer.phoneNumber);
-      setAddress(customer.address || '');
+      
+      // Set address fields
+      if (customer.address) {
+        const province = VIETNAM_ADDRESSES.find(p => p.name === customer.address?.province);
+        if (province) {
+          setSelectedProvince(province.code);
+          const district = province.districts.find(d => d.name === customer.address?.district);
+          if (district) {
+            setSelectedDistrict(district.code);
+            const ward = district.wards.find(w => w.name === customer.address?.ward);
+            if (ward) {
+              setSelectedWard(ward.code);
+            }
+          }
+        }
+        setStreet(customer.address.street || '');
+      }
+      
       setHasInsurance(customer.hasInsurance);
-      setInsuranceCompany(customer.insuranceCompany || '');
+      setSelectedCompanies(customer.insuranceCompany || []);
       setContractNumber(customer.contractNumber || '');
-      setSecurityNumber(customer.securityNumber || '');
       setInsuranceStartDate(customer.insuranceStartDate ? new Date(customer.insuranceStartDate) : new Date());
       setPremiumAmount(customer.premiumAmount ? customer.premiumAmount.toString() : '');
       setPremiumFrequency(customer.premiumFrequency || 'monthly');
-      setNextPremiumDueDate(customer.nextPremiumDueDate ? new Date(customer.nextPremiumDueDate) : new Date());
       setNotes(customer.notes || '');
+      setImages(customer.images || []);
+      setVideos(customer.videos || []);
     }
   }, [customer]);
 
@@ -88,6 +115,60 @@ export default function EditCustomerScreen() {
     }
   };
 
+  const pickMedia = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      allowsMultipleSelection: true,
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      const newImages: string[] = [];
+      const newVideos: string[] = [];
+      
+      result.assets.forEach(asset => {
+        if (asset.type === 'video') {
+          newVideos.push(asset.uri);
+        } else {
+          newImages.push(asset.uri);
+        }
+      });
+      
+      setImages([...images, ...newImages]);
+      setVideos([...videos, ...newVideos]);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setImages(images.filter((_, i) => i !== index));
+  };
+
+  const removeVideo = (index: number) => {
+    setVideos(videos.filter((_, i) => i !== index));
+  };
+
+  const toggleCompany = (company: string) => {
+    if (selectedCompanies.includes(company)) {
+      setSelectedCompanies(selectedCompanies.filter(c => c !== company));
+    } else {
+      setSelectedCompanies([...selectedCompanies, company]);
+    }
+  };
+
+  const getProvinceByCode = (code: string) => {
+    return VIETNAM_ADDRESSES.find(p => p.code === code);
+  };
+
+  const getDistrictByCode = (provinceCode: string, districtCode: string) => {
+    const districts = getDistrictsByProvince(provinceCode);
+    return districts.find(d => d.code === districtCode);
+  };
+
+  const getWardByCode = (provinceCode: string, districtCode: string, wardCode: string) => {
+    const wards = getWardsByDistrict(provinceCode, districtCode);
+    return wards.find(w => w.code === wardCode);
+  };
+
   const validateForm = (): boolean => {
     if (!fullName.trim()) {
       Alert.alert('Lỗi', 'Vui lòng nhập họ tên');
@@ -105,8 +186,8 @@ export default function EditCustomerScreen() {
     }
 
     if (hasInsurance) {
-      if (!insuranceCompany) {
-        Alert.alert('Lỗi', 'Vui lòng chọn công ty bảo hiểm');
+      if (selectedCompanies.length === 0) {
+        Alert.alert('Lỗi', 'Vui lòng chọn ít nhất một công ty bảo hiểm');
         return false;
       }
 
@@ -124,21 +205,34 @@ export default function EditCustomerScreen() {
 
     setLoading(true);
     try {
+      // Calculate next premium due date automatically
+      let nextDueDate: string | undefined;
+      if (hasInsurance && insuranceStartDate && premiumFrequency) {
+        const calculatedDate = calculateNextPremiumDueDate(insuranceStartDate, premiumFrequency);
+        nextDueDate = calculatedDate.toISOString();
+      }
+
       await updateCustomer(customer.id, {
         avatar,
         fullName: fullName.trim(),
         dateOfBirth: dateOfBirth.toISOString(),
         phoneNumber: phoneNumber.trim(),
-        address: address.trim(),
+        address: {
+          province: selectedProvince ? getProvinceByCode(selectedProvince)?.name : undefined,
+          district: selectedDistrict ? getDistrictByCode(selectedProvince, selectedDistrict)?.name : undefined,
+          ward: selectedWard ? getWardByCode(selectedProvince, selectedDistrict, selectedWard)?.name : undefined,
+          street: street.trim() || undefined,
+        },
         hasInsurance,
-        insuranceCompany: hasInsurance ? insuranceCompany : undefined,
+        insuranceCompany: hasInsurance && selectedCompanies.length > 0 ? selectedCompanies : undefined,
         contractNumber: hasInsurance && contractNumber ? contractNumber.trim() : undefined,
-        securityNumber: hasInsurance && securityNumber ? securityNumber.trim() : undefined,
         insuranceStartDate: hasInsurance ? insuranceStartDate.toISOString() : undefined,
         premiumAmount: hasInsurance && premiumAmount ? parseFloat(premiumAmount) : undefined,
         premiumFrequency: hasInsurance ? premiumFrequency : undefined,
-        nextPremiumDueDate: hasInsurance ? nextPremiumDueDate.toISOString() : undefined,
+        nextPremiumDueDate: nextDueDate,
         notes: notes.trim(),
+        images: images.length > 0 ? images : undefined,
+        videos: videos.length > 0 ? videos : undefined,
       });
 
       Alert.alert('Thành công', 'Đã cập nhật thông tin khách hàng', [
@@ -231,12 +325,110 @@ export default function EditCustomerScreen() {
             keyboardType="phone-pad"
           />
 
-          <Text style={commonStyles.label}>Địa chỉ</Text>
+          <Text style={commonStyles.label}>Tỉnh/Thành phố</Text>
+          <TouchableOpacity
+            style={[commonStyles.input, styles.pickerButton]}
+            onPress={() => setShowProvincePicker(!showProvincePicker)}
+          >
+            <Text style={selectedProvince ? styles.pickerText : styles.pickerPlaceholder}>
+              {selectedProvince ? getProvinceByCode(selectedProvince)?.name : 'Chọn tỉnh/thành phố'}
+            </Text>
+            <IconSymbol name="chevron.down" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+          {showProvincePicker && (
+            <View style={styles.pickerList}>
+              <ScrollView style={styles.pickerScrollView}>
+                {VIETNAM_ADDRESSES.map((province) => (
+                  <TouchableOpacity
+                    key={province.code}
+                    style={styles.pickerItem}
+                    onPress={() => {
+                      setSelectedProvince(province.code);
+                      setSelectedDistrict('');
+                      setSelectedWard('');
+                      setShowProvincePicker(false);
+                    }}
+                  >
+                    <Text style={styles.pickerItemText}>{province.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {selectedProvince && (
+            <>
+              <Text style={commonStyles.label}>Quận/Huyện</Text>
+              <TouchableOpacity
+                style={[commonStyles.input, styles.pickerButton]}
+                onPress={() => setShowDistrictPicker(!showDistrictPicker)}
+              >
+                <Text style={selectedDistrict ? styles.pickerText : styles.pickerPlaceholder}>
+                  {selectedDistrict ? getDistrictByCode(selectedProvince, selectedDistrict)?.name : 'Chọn quận/huyện'}
+                </Text>
+                <IconSymbol name="chevron.down" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+              {showDistrictPicker && (
+                <View style={styles.pickerList}>
+                  <ScrollView style={styles.pickerScrollView}>
+                    {getDistrictsByProvince(selectedProvince).map((district) => (
+                      <TouchableOpacity
+                        key={district.code}
+                        style={styles.pickerItem}
+                        onPress={() => {
+                          setSelectedDistrict(district.code);
+                          setSelectedWard('');
+                          setShowDistrictPicker(false);
+                        }}
+                      >
+                        <Text style={styles.pickerItemText}>{district.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </>
+          )}
+
+          {selectedDistrict && (
+            <>
+              <Text style={commonStyles.label}>Phường/Xã</Text>
+              <TouchableOpacity
+                style={[commonStyles.input, styles.pickerButton]}
+                onPress={() => setShowWardPicker(!showWardPicker)}
+              >
+                <Text style={selectedWard ? styles.pickerText : styles.pickerPlaceholder}>
+                  {selectedWard ? getWardByCode(selectedProvince, selectedDistrict, selectedWard)?.name : 'Chọn phường/xã'}
+                </Text>
+                <IconSymbol name="chevron.down" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+              {showWardPicker && (
+                <View style={styles.pickerList}>
+                  <ScrollView style={styles.pickerScrollView}>
+                    {getWardsByDistrict(selectedProvince, selectedDistrict).map((ward) => (
+                      <TouchableOpacity
+                        key={ward.code}
+                        style={styles.pickerItem}
+                        onPress={() => {
+                          setSelectedWard(ward.code);
+                          setShowWardPicker(false);
+                        }}
+                      >
+                        <Text style={styles.pickerItemText}>{ward.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </>
+          )}
+
+          <Text style={commonStyles.label}>Số nhà, tên đường</Text>
           <TextInput
             style={commonStyles.input}
-            value={address}
-            onChangeText={setAddress}
-            placeholder="Nhập địa chỉ"
+            value={street}
+            onChangeText={setStreet}
+            placeholder="Nhập số nhà, tên đường"
             placeholderTextColor={colors.textSecondary}
           />
         </View>
@@ -256,13 +448,13 @@ export default function EditCustomerScreen() {
 
           {hasInsurance && (
             <>
-              <Text style={commonStyles.label}>Công ty bảo hiểm *</Text>
+              <Text style={commonStyles.label}>Công ty bảo hiểm * (có thể chọn nhiều)</Text>
               <TouchableOpacity
                 style={[commonStyles.input, styles.pickerButton]}
                 onPress={() => setShowCompanyPicker(!showCompanyPicker)}
               >
-                <Text style={insuranceCompany ? styles.pickerText : styles.pickerPlaceholder}>
-                  {insuranceCompany || 'Chọn công ty bảo hiểm'}
+                <Text style={selectedCompanies.length > 0 ? styles.pickerText : styles.pickerPlaceholder}>
+                  {selectedCompanies.length > 0 ? `Đã chọn ${selectedCompanies.length} công ty` : 'Chọn công ty bảo hiểm'}
                 </Text>
                 <IconSymbol name="chevron.down" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
@@ -272,16 +464,42 @@ export default function EditCustomerScreen() {
                     {INSURANCE_COMPANIES.map((company) => (
                       <TouchableOpacity
                         key={company}
-                        style={styles.pickerItem}
-                        onPress={() => {
-                          setInsuranceCompany(company);
-                          setShowCompanyPicker(false);
-                        }}
+                        style={[
+                          styles.pickerItem,
+                          selectedCompanies.includes(company) && styles.pickerItemSelected
+                        ]}
+                        onPress={() => toggleCompany(company)}
                       >
-                        <Text style={styles.pickerItemText}>{company}</Text>
+                        <Text style={[
+                          styles.pickerItemText,
+                          selectedCompanies.includes(company) && styles.pickerItemTextSelected
+                        ]}>
+                          {company}
+                        </Text>
+                        {selectedCompanies.includes(company) && (
+                          <IconSymbol name="checkmark" size={20} color={colors.primary} />
+                        )}
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
+                  <TouchableOpacity
+                    style={styles.pickerDoneButton}
+                    onPress={() => setShowCompanyPicker(false)}
+                  >
+                    <Text style={styles.pickerDoneText}>Xong</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {selectedCompanies.length > 0 && (
+                <View style={styles.selectedCompaniesContainer}>
+                  {selectedCompanies.map((company) => (
+                    <View key={company} style={styles.selectedCompanyChip}>
+                      <Text style={styles.selectedCompanyText}>{company}</Text>
+                      <TouchableOpacity onPress={() => toggleCompany(company)}>
+                        <IconSymbol name="xmark.circle.fill" size={18} color={colors.textSecondary} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
                 </View>
               )}
 
@@ -291,15 +509,6 @@ export default function EditCustomerScreen() {
                 value={contractNumber}
                 onChangeText={setContractNumber}
                 placeholder="Nhập số hợp đồng"
-                placeholderTextColor={colors.textSecondary}
-              />
-
-              <Text style={commonStyles.label}>Số bảo mật</Text>
-              <TextInput
-                style={commonStyles.input}
-                value={securityNumber}
-                onChangeText={setSecurityNumber}
-                placeholder="Nhập số bảo mật"
                 placeholderTextColor={colors.textSecondary}
               />
 
@@ -340,7 +549,7 @@ export default function EditCustomerScreen() {
                 </TouchableOpacity>
               )}
 
-              <Text style={commonStyles.label}>Số tiền phí bảo hiểm</Text>
+              <Text style={commonStyles.label}>Số tiền phí bảo hiểm (VNĐ)</Text>
               <TextInput
                 style={commonStyles.input}
                 value={premiumAmount}
@@ -377,42 +586,62 @@ export default function EditCustomerScreen() {
                 </View>
               )}
 
-              <Text style={commonStyles.label}>Ngày đến hạn đóng phí tiếp theo</Text>
-              <TouchableOpacity
-                style={[commonStyles.input, styles.dateButton]}
-                onPress={() => setShowDueDatePicker(true)}
-              >
-                <Text style={styles.dateText}>{nextPremiumDueDate.toLocaleDateString('vi-VN')}</Text>
-                <IconSymbol name="calendar" size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-              {showDueDatePicker && (
-                <DateTimePicker
-                  value={nextPremiumDueDate}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(event, date) => {
-                    if (event.type === 'dismissed') {
-                      setShowDueDatePicker(false);
-                      return;
-                    }
-                    if (date) {
-                      setNextPremiumDueDate(date);
-                    }
-                    if (Platform.OS === 'android') {
-                      setShowDueDatePicker(false);
-                    }
-                  }}
-                />
-              )}
-              {showDueDatePicker && Platform.OS === 'ios' && (
-                <TouchableOpacity
-                  style={styles.datePickerDoneButton}
-                  onPress={() => setShowDueDatePicker(false)}
-                >
-                  <Text style={styles.datePickerDoneText}>Xong</Text>
-                </TouchableOpacity>
-              )}
+              <View style={styles.infoBox}>
+                <IconSymbol name="info.circle" size={20} color={colors.primary} />
+                <Text style={styles.infoText}>
+                  Ngày đến hạn đóng phí tiếp theo sẽ được tự động tính toán dựa trên ngày tham gia và kỳ đóng phí
+                </Text>
+              </View>
             </>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Hình ảnh và Video</Text>
+          
+          <TouchableOpacity style={styles.mediaButton} onPress={pickMedia}>
+            <IconSymbol name="photo.on.rectangle" size={24} color={colors.primary} />
+            <Text style={styles.mediaButtonText}>Thêm hình ảnh/video</Text>
+          </TouchableOpacity>
+
+          {images.length > 0 && (
+            <View style={styles.mediaSection}>
+              <Text style={styles.mediaLabel}>Hình ảnh ({images.length})</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mediaScroll}>
+                {images.map((uri, index) => (
+                  <View key={index} style={styles.mediaItem}>
+                    <Image source={{ uri }} style={styles.mediaImage} />
+                    <TouchableOpacity
+                      style={styles.mediaRemoveButton}
+                      onPress={() => removeImage(index)}
+                    >
+                      <IconSymbol name="xmark.circle.fill" size={24} color="#FF3B30" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {videos.length > 0 && (
+            <View style={styles.mediaSection}>
+              <Text style={styles.mediaLabel}>Video ({videos.length})</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mediaScroll}>
+                {videos.map((uri, index) => (
+                  <View key={index} style={styles.mediaItem}>
+                    <View style={styles.videoPlaceholder}>
+                      <IconSymbol name="play.circle.fill" size={48} color={colors.primary} />
+                    </View>
+                    <TouchableOpacity
+                      style={styles.mediaRemoveButton}
+                      onPress={() => removeVideo(index)}
+                    >
+                      <IconSymbol name="xmark.circle.fill" size={24} color="#FF3B30" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
           )}
         </View>
 
@@ -570,7 +799,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 8,
     marginBottom: 12,
-    maxHeight: 200,
+    maxHeight: 250,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -581,10 +810,119 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  pickerItemSelected: {
+    backgroundColor: colors.inputBackground,
   },
   pickerItemText: {
     fontSize: 16,
     color: colors.text,
+  },
+  pickerItemTextSelected: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  pickerDoneButton: {
+    backgroundColor: colors.primary,
+    padding: 12,
+    alignItems: 'center',
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  pickerDoneText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  selectedCompaniesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  selectedCompanyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.inputBackground,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+  },
+  selectedCompanyText: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    backgroundColor: colors.inputBackground,
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+    gap: 8,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  mediaButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.inputBackground,
+    padding: 16,
+    borderRadius: 8,
+    gap: 8,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+  },
+  mediaButtonText: {
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  mediaSection: {
+    marginTop: 16,
+  },
+  mediaLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  mediaScroll: {
+    marginBottom: 8,
+  },
+  mediaItem: {
+    marginRight: 12,
+    position: 'relative',
+  },
+  mediaImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+  },
+  videoPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    backgroundColor: colors.inputBackground,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mediaRemoveButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
   },
   notesInput: {
     height: 100,
