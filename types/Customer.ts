@@ -23,6 +23,10 @@ export interface Customer {
   videos?: string[];
   createdAt: string;
   updatedAt: string;
+  // New fields
+  customerStatus: 'Đã ký' | 'Tiềm Năng' | 'Loại bỏ';
+  paidUntil?: string; // Date until which the customer has paid
+  meetingDate?: string; // Date of meeting with customer
 }
 
 export interface SearchFilters {
@@ -32,4 +36,10 @@ export interface SearchFilters {
   dueWithin30Days?: boolean;
   overdue?: boolean;
   birthdayWithin5Days?: boolean;
+  // New filters
+  customerStatus?: 'Đã ký' | 'Tiềm Năng' | 'Loại bỏ';
+  meetingDateFrom?: string;
+  meetingDateTo?: string;
+  meetingMonth?: number;
+  meetingYear?: number;
 }

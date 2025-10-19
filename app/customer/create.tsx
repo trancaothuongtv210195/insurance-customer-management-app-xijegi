@@ -21,6 +21,12 @@ import { calculateNextPremiumDueDate } from '@/utils/dateUtils';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 
+const CUSTOMER_STATUSES = [
+  { value: 'Đã ký', label: 'Đã ký', color: colors.success },
+  { value: 'Tiềm Năng', label: 'Tiềm Năng', color: colors.accent },
+  { value: 'Loại bỏ', label: 'Loại bỏ', color: colors.danger },
+] as const;
+
 export default function CreateCustomerScreen() {
   const { addCustomer, isPhoneNumberUnique, isContractNumberUnique } = useCustomers();
   
@@ -47,6 +53,15 @@ export default function CreateCustomerScreen() {
   const [premiumAmount, setPremiumAmount] = useState('');
   const [premiumFrequency, setPremiumFrequency] = useState<'monthly' | 'quarterly' | 'semi-annual' | 'annual'>('monthly');
   const [showFrequencyPicker, setShowFrequencyPicker] = useState(false);
+  
+  // New fields
+  const [customerStatus, setCustomerStatus] = useState<'Đã ký' | 'Tiềm Năng' | 'Loại bỏ'>('Tiềm Năng');
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
+  const [meetingDate, setMeetingDate] = useState(new Date());
+  const [showMeetingDatePicker, setShowMeetingDatePicker] = useState(false);
+  const [paidUntil, setPaidUntil] = useState<Date | null>(null);
+  const [showPaidUntilPicker, setShowPaidUntilPicker] = useState(false);
+  
   const [notes, setNotes] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [videos, setVideos] = useState<string[]>([]);
@@ -182,6 +197,9 @@ export default function CreateCustomerScreen() {
         notes: notes.trim(),
         images: images.length > 0 ? images : undefined,
         videos: videos.length > 0 ? videos : undefined,
+        customerStatus,
+        meetingDate: meetingDate.toISOString(),
+        paidUntil: paidUntil ? paidUntil.toISOString() : undefined,
       });
 
       Alert.alert('Thành công', 'Đã thêm khách hàng mới', [
@@ -201,12 +219,6 @@ export default function CreateCustomerScreen() {
         options={{
           title: 'Thêm khách hàng',
           headerBackTitle: 'Quay lại',
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} style={styles.headerBackButton}>
-              <IconSymbol name="chevron.left" size={24} color={colors.primary} />
-              <Text style={styles.headerBackText}>Quay lại</Text>
-            </TouchableOpacity>
-          ),
         }}
       />
       <ScrollView style={commonStyles.container} contentContainerStyle={styles.scrollContent}>
@@ -279,6 +291,72 @@ export default function CreateCustomerScreen() {
             placeholderTextColor={colors.textSecondary}
             keyboardType="phone-pad"
           />
+
+          <Text style={commonStyles.label}>Loại khách hàng *</Text>
+          <TouchableOpacity
+            style={[commonStyles.input, styles.pickerButton]}
+            onPress={() => setShowStatusPicker(!showStatusPicker)}
+          >
+            <Text style={[styles.pickerText, { color: CUSTOMER_STATUSES.find(s => s.value === customerStatus)?.color }]}>
+              {customerStatus}
+            </Text>
+            <IconSymbol name="chevron.down" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+          {showStatusPicker && (
+            <View style={styles.pickerList}>
+              {CUSTOMER_STATUSES.map((status) => (
+                <TouchableOpacity
+                  key={status.value}
+                  style={[styles.pickerItem, customerStatus === status.value && styles.pickerItemSelected]}
+                  onPress={() => {
+                    setCustomerStatus(status.value);
+                    setShowStatusPicker(false);
+                  }}
+                >
+                  <Text style={[styles.pickerItemText, { color: status.color }]}>{status.label}</Text>
+                  {customerStatus === status.value && (
+                    <IconSymbol name="checkmark" size={20} color={status.color} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          <Text style={commonStyles.label}>Ngày gặp khách hàng *</Text>
+          <TouchableOpacity
+            style={[commonStyles.input, styles.dateButton]}
+            onPress={() => setShowMeetingDatePicker(true)}
+          >
+            <Text style={styles.dateText}>{meetingDate.toLocaleDateString('vi-VN')}</Text>
+            <IconSymbol name="calendar" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+          {showMeetingDatePicker && (
+            <DateTimePicker
+              value={meetingDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(event, date) => {
+                if (event.type === 'dismissed') {
+                  setShowMeetingDatePicker(false);
+                  return;
+                }
+                if (date) {
+                  setMeetingDate(date);
+                }
+                if (Platform.OS === 'android') {
+                  setShowMeetingDatePicker(false);
+                }
+              }}
+            />
+          )}
+          {showMeetingDatePicker && Platform.OS === 'ios' && (
+            <TouchableOpacity
+              style={styles.datePickerDoneButton}
+              onPress={() => setShowMeetingDatePicker(false)}
+            >
+              <Text style={styles.datePickerDoneText}>Xong</Text>
+            </TouchableOpacity>
+          )}
 
           <Text style={commonStyles.label}>Tỉnh/Thành phố</Text>
           <TouchableOpacity
@@ -541,6 +619,52 @@ export default function CreateCustomerScreen() {
                 </View>
               )}
 
+              <Text style={commonStyles.label}>Đã đóng phí đến ngày</Text>
+              <TouchableOpacity
+                style={[commonStyles.input, styles.dateButton]}
+                onPress={() => setShowPaidUntilPicker(true)}
+              >
+                <Text style={paidUntil ? styles.dateText : styles.pickerPlaceholder}>
+                  {paidUntil ? paidUntil.toLocaleDateString('vi-VN') : 'Chọn ngày đã đóng phí đến'}
+                </Text>
+                <IconSymbol name="calendar" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+              {showPaidUntilPicker && (
+                <DateTimePicker
+                  value={paidUntil || new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={(event, date) => {
+                    if (event.type === 'dismissed') {
+                      setShowPaidUntilPicker(false);
+                      return;
+                    }
+                    if (date) {
+                      setPaidUntil(date);
+                    }
+                    if (Platform.OS === 'android') {
+                      setShowPaidUntilPicker(false);
+                    }
+                  }}
+                />
+              )}
+              {showPaidUntilPicker && Platform.OS === 'ios' && (
+                <TouchableOpacity
+                  style={styles.datePickerDoneButton}
+                  onPress={() => setShowPaidUntilPicker(false)}
+                >
+                  <Text style={styles.datePickerDoneText}>Xong</Text>
+                </TouchableOpacity>
+              )}
+              {paidUntil && (
+                <TouchableOpacity
+                  style={styles.clearButton}
+                  onPress={() => setPaidUntil(null)}
+                >
+                  <Text style={styles.clearButtonText}>Xóa ngày đã đóng phí</Text>
+                </TouchableOpacity>
+              )}
+
               <View style={styles.infoBox}>
                 <IconSymbol name="info.circle" size={20} color={colors.primary} />
                 <Text style={styles.infoText}>
@@ -639,16 +763,6 @@ export default function CreateCustomerScreen() {
 const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 32,
-  },
-  headerBackButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-  },
-  headerBackText: {
-    fontSize: 17,
-    color: colors.primary,
-    marginLeft: 4,
   },
   section: {
     padding: 16,
@@ -813,6 +927,15 @@ const styles = StyleSheet.create({
   selectedCompanyText: {
     fontSize: 14,
     color: colors.text,
+  },
+  clearButton: {
+    marginTop: 8,
+    padding: 8,
+  },
+  clearButtonText: {
+    fontSize: 14,
+    color: colors.danger,
+    textAlign: 'center',
   },
   infoBox: {
     flexDirection: 'row',

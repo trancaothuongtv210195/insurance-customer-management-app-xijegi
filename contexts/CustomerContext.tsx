@@ -122,6 +122,34 @@ export const CustomerProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
 
+      // Customer status filter
+      if (filters.customerStatus && customer.customerStatus !== filters.customerStatus) {
+        return false;
+      }
+
+      // Meeting date filters
+      if (filters.meetingDateFrom && customer.meetingDate) {
+        const meetingDate = new Date(customer.meetingDate);
+        const fromDate = new Date(filters.meetingDateFrom);
+        if (meetingDate < fromDate) return false;
+      }
+
+      if (filters.meetingDateTo && customer.meetingDate) {
+        const meetingDate = new Date(customer.meetingDate);
+        const toDate = new Date(filters.meetingDateTo);
+        if (meetingDate > toDate) return false;
+      }
+
+      if (filters.meetingMonth !== undefined && customer.meetingDate) {
+        const meetingDate = new Date(customer.meetingDate);
+        if (meetingDate.getMonth() !== filters.meetingMonth) return false;
+      }
+
+      if (filters.meetingYear !== undefined && customer.meetingDate) {
+        const meetingDate = new Date(customer.meetingDate);
+        if (meetingDate.getFullYear() !== filters.meetingYear) return false;
+      }
+
       // Due within 30 days filter
       if (filters.dueWithin30Days && customer.nextPremiumDueDate) {
         const dueDate = new Date(customer.nextPremiumDueDate);
