@@ -18,7 +18,8 @@ export const downloadMedia = async (uri: string, filename?: string): Promise<boo
     const fileName = filename || `download_${Date.now()}.${fileExtension}`;
     
     // Download file to cache directory
-    const fileUri = FileSystem.cacheDirectory + fileName;
+    const cacheDir = FileSystem.cacheDirectory || '';
+    const fileUri = cacheDir + fileName;
     
     console.log('Downloading media from:', uri);
     console.log('Saving to:', fileUri);

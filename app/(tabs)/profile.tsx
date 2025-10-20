@@ -91,10 +91,11 @@ export default function ProfileScreen() {
 
       // Save to file
       const fileName = `khach_hang_${new Date().getTime()}.csv`;
-      const fileUri = FileSystem.documentDirectory + fileName;
+      const documentDir = FileSystem.documentDirectory || '';
+      const fileUri = documentDir + fileName;
       
       await FileSystem.writeAsStringAsync(fileUri, csvWithBOM, {
-        encoding: FileSystem.EncodingType.UTF8,
+        encoding: 'utf8' as any,
       });
 
       // Share the file
@@ -144,10 +145,11 @@ export default function ProfileScreen() {
 
       // Save to file
       const fileName = `backup_${new Date().getTime()}.json`;
-      const fileUri = FileSystem.documentDirectory + fileName;
+      const documentDir = FileSystem.documentDirectory || '';
+      const fileUri = documentDir + fileName;
       
       await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(backup, null, 2), {
-        encoding: FileSystem.EncodingType.UTF8,
+        encoding: 'utf8' as any,
       });
 
       // Share the file
@@ -194,7 +196,7 @@ export default function ProfileScreen() {
 
               // Read the file
               const fileContent = await FileSystem.readAsStringAsync(result.assets[0].uri, {
-                encoding: FileSystem.EncodingType.UTF8,
+                encoding: 'utf8' as any,
               });
 
               // Parse and validate backup
